@@ -1,12 +1,7 @@
 resource "aws_s3_bucket" "s3_bucket" { #tfsec:ignore:AWS002 tfsec:ignore:AWS017 tfsec:ignore:AWS077
-  bucket = var.bucket_name
+  bucket = "${var.account_id}-${var.bucket_name}"
 
   tags = local.common_tags
-}
-
-resource "aws_s3_bucket_acl" "this" {
-  bucket = aws_s3_bucket.s3_bucket.id
-  acl    = "private"
 }
 
 resource "aws_s3_bucket_logging" "this" {
@@ -22,6 +17,21 @@ resource "aws_s3_bucket_versioning" "this" {
     status = "Enabled"
   }
 }
+
+# Resource to avoid error "AccessControlListNotSupported The bucket does not allow ACLs"
+resource "aws_s3_bucket_ownership_controls" "this" {
+  bucket = aws_s3_bucket.s3_bucket.id
+  rule {
+    object_ownership = "ObjectWriter"
+  }
+}
+
+resource "aws_s3_bucket_acl" "this" {
+  bucket = aws_s3_bucket.s3_bucket.id
+  acl    = "private"
+  depends_on = [aws_s3_bucket_ownership_controls.this]
+}
+
 
 resource "aws_s3_bucket_server_side_encryption_configuration" "this" {
   bucket = aws_s3_bucket.s3_bucket.id
